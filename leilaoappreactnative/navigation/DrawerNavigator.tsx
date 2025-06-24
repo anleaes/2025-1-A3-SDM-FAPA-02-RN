@@ -6,13 +6,16 @@ import CategoriesScreen, { Category } from "@/screens/CategoriesScreen";
 import ItemsScreen, { Item } from "@/screens/ItemsScreen";
 import AddressScreen, { Address } from "@/screens/AddressScreen";
 import AuctioneersScreen, { Auctioneer } from "@/screens/AuctioneersScreen";
+import BiddersScreen, { Bidder } from "@/screens/BiddersScreen";
+import CreateBidderScreen from "@/screens/CreateBidderScreen";
+import EditBidderScreen from "@/screens/EditBidderScreen";
 import CreateAuctioneerScreen from "@/screens/CreateAuctioneerScreen";
 import EditAuctioneerScreen from "@/screens/EditAuctioneerScreen";
 import CreateAddressScreen from "@/screens/CreateAddressScreen";
 import EditAddressScreen from "@/screens/EditAddressScreen";
 import CreateCategoryScreen from "@/screens/CreateCategoryScreen";
 import EditCategoryScreen from "@/screens/EditCategoryScreen";
-import EditItemScreen from "@/screens/EditItemScreent";
+import EditItemScreen from "@/screens/EditItemScreen";
 import CreateItemScreen from "@/screens/CreateItemScreen";
 import HomeScreen from "@/screens/HomeScreen";
 
@@ -29,7 +32,10 @@ export type DrawerParamList = {
   EditAddress: { address: Address };
   Auctioneers: undefined;
   CreateAuctioneer: undefined;
-  EditAuctioneer: { auctioneer: Auctioneer };
+  EditAuctioneer: { bidder: Bidder };
+  Bidders: undefined;
+  CreateBidder: undefined;
+  EditBidder: { bidder: Bidder };
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -163,6 +169,33 @@ const DrawerNavigator = () => {
         options={{
           drawerItemStyle: { display: "none" },
           title: "Editar leiloeiro",
+        }}
+      />
+
+      <Drawer.Screen
+        name="Bidders"
+        component={BiddersScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
+          title: "Ofertantes",
+        }}
+      />
+      <Drawer.Screen
+        name="CreateBidder"
+        component={CreateBidderScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Novo ofertante",
+        }}
+      />
+      <Drawer.Screen
+        name="EditBidder"
+        component={EditBidderScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Editar ofertante",
         }}
       />
     </Drawer.Navigator>
