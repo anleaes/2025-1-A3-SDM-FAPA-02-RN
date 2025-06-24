@@ -4,6 +4,9 @@ import React from "react";
 import CustomDrawerContent from "../components/CustomDrawerContent";
 import CategoriesScreen, { Category } from "@/screens/CategoriesScreen";
 import ItemsScreen, { Item } from "@/screens/ItemsScreen";
+import AddressScreen, { Address } from "@/screens/AddressScreen";
+import CreateAddressScreen from "@/screens/CreateAddressScreen";
+import EditAddressScreen from "@/screens/EditAddressScreen";
 import CreateCategoryScreen from "@/screens/CreateCategoryScreen";
 import EditCategoryScreen from "@/screens/EditCategoryScreen";
 import EditItemScreen from "@/screens/EditItemScreent";
@@ -18,6 +21,9 @@ export type DrawerParamList = {
   Items: undefined;
   CreateItem: undefined;
   EditItem: { item: Item };
+  Address: undefined;
+  CreateAddress: undefined;
+  EditAddress: { address: Address };
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -97,6 +103,33 @@ const DrawerNavigator = () => {
         options={{
           drawerItemStyle: { display: "none" },
           title: "Editar item",
+        }}
+      />
+
+      <Drawer.Screen
+        name="Address"
+        component={AddressScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
+          title: "Endereços",
+        }}
+      />
+      <Drawer.Screen
+        name="CreateAddress"
+        component={CreateAddressScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Novo endereço",
+        }}
+      />
+      <Drawer.Screen
+        name="EditAddress"
+        component={EditAddressScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Editar endereço",
         }}
       />
     </Drawer.Navigator>
