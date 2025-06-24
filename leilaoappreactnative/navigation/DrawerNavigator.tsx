@@ -5,6 +5,9 @@ import CustomDrawerContent from "../components/CustomDrawerContent";
 import CategoriesScreen, { Category } from "@/screens/CategoriesScreen";
 import ItemsScreen, { Item } from "@/screens/ItemsScreen";
 import AddressScreen, { Address } from "@/screens/AddressScreen";
+import AuctioneersScreen, { Auctioneer } from "@/screens/AuctioneersScreen";
+import CreateAuctioneerScreen from "@/screens/CreateAuctioneerScreen";
+import EditAuctioneerScreen from "@/screens/EditAuctioneerScreen";
 import CreateAddressScreen from "@/screens/CreateAddressScreen";
 import EditAddressScreen from "@/screens/EditAddressScreen";
 import CreateCategoryScreen from "@/screens/CreateCategoryScreen";
@@ -24,6 +27,9 @@ export type DrawerParamList = {
   Address: undefined;
   CreateAddress: undefined;
   EditAddress: { address: Address };
+  Auctioneers: undefined;
+  CreateAuctioneer: undefined;
+  EditAuctioneer: { auctioneer: Auctioneer };
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -130,6 +136,33 @@ const DrawerNavigator = () => {
         options={{
           drawerItemStyle: { display: "none" },
           title: "Editar endereço",
+        }}
+      />
+
+      <Drawer.Screen
+        name="Auctioneers"
+        component={AuctioneersScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
+          title: "Leiloeiros",
+        }}
+      />
+      <Drawer.Screen
+        name="CreateAuctioneer"
+        component={CreateAuctioneerScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Novo leiloeiro",
+        }}
+      />
+      <Drawer.Screen
+        name="EditAuctioneer"
+        component={EditAuctioneerScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Editar leiloeiro",
         }}
       />
     </Drawer.Navigator>
