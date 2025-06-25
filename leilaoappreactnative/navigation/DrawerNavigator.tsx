@@ -6,6 +6,9 @@ import CategoriesScreen, { Category } from "@/screens/CategoriesScreen";
 import ItemsScreen, { Item } from "@/screens/ItemsScreen";
 import AddressScreen, { Address } from "@/screens/AddressScreen";
 import AuctioneersScreen, { Auctioneer } from "@/screens/AuctioneersScreen";
+import AuctionsScreen, { Auction } from "@/screens/AuctionsScreen";
+import CreateAuctionScreen from "@/screens/CreateAuctionScreen";
+import EditAuctionScreen from "@/screens/EditAuctionScreen";
 import BiddersScreen, { Bidder } from "@/screens/BiddersScreen";
 import CreateBidderScreen from "@/screens/CreateBidderScreen";
 import EditBidderScreen from "@/screens/EditBidderScreen";
@@ -17,6 +20,7 @@ import CreateCategoryScreen from "@/screens/CreateCategoryScreen";
 import EditCategoryScreen from "@/screens/EditCategoryScreen";
 import EditItemScreen from "@/screens/EditItemScreen";
 import CreateItemScreen from "@/screens/CreateItemScreen";
+import VisualizeAuctionScreen from "@/screens/VisualizeAuctionScreen";
 import HomeScreen from "@/screens/HomeScreen";
 
 export type DrawerParamList = {
@@ -32,10 +36,14 @@ export type DrawerParamList = {
   EditAddress: { address: Address };
   Auctioneers: undefined;
   CreateAuctioneer: undefined;
-  EditAuctioneer: { bidder: Bidder };
+  EditAuctioneer: { bidder: Auctioneer };
   Bidders: undefined;
   CreateBidder: undefined;
   EditBidder: { bidder: Bidder };
+  Auctions: undefined;
+  CreateAuction: undefined;
+  EditAuction: { auction: Auction };
+  VisualizeAuction: { auction: Auction };
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -69,7 +77,7 @@ const DrawerNavigator = () => {
         component={CategoriesScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+            <Ionicons name="layers-outline" size={size} color={color} />
           ),
           title: "Categorias",
         }}
@@ -96,7 +104,7 @@ const DrawerNavigator = () => {
         component={ItemsScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+            <Ionicons name="pricetag-outline" size={size} color={color} />
           ),
           title: "Itens",
         }}
@@ -123,7 +131,7 @@ const DrawerNavigator = () => {
         component={AddressScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+            <Ionicons name="location-outline" size={size} color={color} />
           ),
           title: "Endereços",
         }}
@@ -150,7 +158,7 @@ const DrawerNavigator = () => {
         component={AuctioneersScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+            <Ionicons name="people-outline" size={size} color={color} />
           ),
           title: "Leiloeiros",
         }}
@@ -177,7 +185,7 @@ const DrawerNavigator = () => {
         component={BiddersScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+            <Ionicons name="people-outline" size={size} color={color} />
           ),
           title: "Ofertantes",
         }}
@@ -196,6 +204,41 @@ const DrawerNavigator = () => {
         options={{
           drawerItemStyle: { display: "none" },
           title: "Editar ofertante",
+        }}
+      />
+
+      <Drawer.Screen
+        name="Auctions"
+        component={AuctionsScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="cash-outline" size={size} color={color} />
+          ),
+          title: "Leilões",
+        }}
+      />
+      <Drawer.Screen
+        name="CreateAuction"
+        component={CreateAuctionScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Novo leilão",
+        }}
+      />
+      <Drawer.Screen
+        name="EditAuction"
+        component={EditAuctionScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Editar leilão",
+        }}
+      />
+      <Drawer.Screen
+        name="VisualizeAuction"
+        component={VisualizeAuctionScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Visualizar leilão",
         }}
       />
     </Drawer.Navigator>
