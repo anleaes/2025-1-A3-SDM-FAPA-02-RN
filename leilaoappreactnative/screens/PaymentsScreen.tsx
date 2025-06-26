@@ -11,96 +11,153 @@ import {
   View,
 } from "react-native";
 import { DrawerParamList } from "../navigation/DrawerNavigator";
-import { Category } from "./CategoriesScreen";
 
-type Props = DrawerScreenProps<DrawerParamList, "Items">;
+type Props = DrawerScreenProps<DrawerParamList, "Payments">;
 
-export type Item = {
+export type Payment = {
   id: number;
-  name: string;
-  description: string;
-  starting_value: number;
-  final_value: number;
-  category: Category;
+  amount_paid: number;
+  status: "PENDING" | "COMPLETED";
+  bidder: number;
+  auction: number;
+  item: number;
 };
 
-const ItemsScreen = ({ navigation }: Props) => {
-  const [items, setItems] = useState<Item[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+type EnrichedPayment = {
+  id: number;
+  amount_paid: number;
+  status: "PENDING" | "COMPLETED";
+  bidderName: string;
+  auctionName: string;
+  itemName: string;
+  bidderId: number;
+  auctionId: number;
+  itemId: number;
+};
+
+const PaymentsScreen = ({ navigation }: Props) => {
+  const [payments, setPayments] = useState<EnrichedPayment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchItemsAndCategories = async () => {
-    setLoading(true);
+  const fetchDetails = async (url: string, id: number): Promise<string> => {
+    const res = await fetch(`${url}/${id}/`);
 
-    const categoriesRes = await fetch("http://127.0.0.1:8000/categoria/");
-    const categoriesData = await categoriesRes.json();
+    if (!res.ok) {
+      console.error(`Erro ao buscar ${url}/${id}:`, res.status);
+      return "Desconhecido";
+    }
 
-    const itemsRes = await fetch("http://127.0.0.1:8000/item/");
-    const itemsData = await itemsRes.json();
+    const data = await res.json();
+    return data.name || data.title;
+  };
 
-    const enrichedItems = itemsData.map((item: any) => {
-      const category = categoriesData.find(
-        (cat: Category) => cat.id === item.category
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://127.0.0.1:8000/pagamento/");
+
+      if (!res.ok) {
+        console.error("Erro ao buscar pagamentos:", res.status);
+        setPayments([]);
+        setLoading(false);
+        return;
+      }
+
+      const data: Payment[] = await res.json();
+
+      const enriched = await Promise.all(
+        data.map(async (payment) => {
+          const bidderName = await fetchDetails(
+            "http://127.0.0.1:8000/ofertante",
+            payment.bidder
+          );
+          const auctionName = await fetchDetails(
+            "http://127.0.0.1:8000/leilao",
+            payment.auction
+          );
+          const itemName = await fetchDetails(
+            "http://127.0.0.1:8000/item",
+            payment.item
+          );
+
+          return {
+            id: payment.id,
+            amount_paid: Number(payment.amount_paid),
+            status: payment.status,
+            bidderName,
+            auctionName,
+            itemName,
+            bidderId: payment.bidder,
+            auctionId: payment.auction,
+            itemId: payment.item,
+          };
+        })
       );
-      return { ...item, category };
-    });
 
-    setCategories(categoriesData);
-    setItems(enrichedItems);
-    setLoading(false);
+      setPayments(enriched);
+    } catch (error) {
+      console.error("Erro geral ao buscar pagamentos:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useFocusEffect(
     useCallback(() => {
-      fetchItemsAndCategories();
+      fetchPayments();
     }, [])
   );
+
   const handleDelete = async (id: number) => {
-    const res = await fetch(`http://127.0.0.1:8000/item/${id}/`, {
+    await fetch(`http://127.0.0.1:8000/pagamento/${id}/`, {
       method: "DELETE",
     });
-    setItems((prev) => prev.filter((c) => c.id !== id));
+    setPayments((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
+  const getStatusText = (status: "PENDING" | "COMPLETED") => {
+    return status === "PENDING" ? "Pendente" : "Completo";
   };
 
-  const renderItem = ({ item }: { item: Item }) => (
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="folder-open-outline" size={64} color="#9CA3AF" />
+      <Text style={styles.emptyTitle}>Nenhum pagamento encontrado</Text>
+    </View>
+  );
+
+  const renderItem = ({ item }: { item: EnrichedPayment }) => (
     <View style={styles.card}>
       <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={styles.textContainer}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.description} numberOfLines={2}>
-              {item.description}
-            </Text>
-          </View>
-          <View style={styles.valueContainer}>
-            <Text style={styles.valueLabel}>Valor inicial</Text>
-            <Text style={styles.value}>
-              {formatCurrency(item.starting_value)}
-            </Text>
-          </View>
-        </View>
+        <View style={styles.textContainer}>
+          <Text style={styles.name}>R$ {item.amount_paid.toFixed(2)}</Text>
 
-        <View style={styles.categoryContainer}>
-          <View style={styles.categoryBadge}>
-            <Ionicons name="pricetag" size={14} color="#4B7BE5" />
-            <Text style={styles.categoryText}>{item.category.name}</Text>
-          </View>
+          <Text style={styles.description}>
+            Status: {getStatusText(item.status)}
+          </Text>
+          <Text style={styles.description}>Responsável: {item.bidderName}</Text>
+          <Text style={styles.description}>Leilão: {item.auctionName}</Text>
+          <Text style={styles.description}>Item: {item.itemName}</Text>
         </View>
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => navigation.navigate("EditItem", { item: item })}
+            style={styles.payButton}
+            onPress={() =>
+              navigation.navigate("Payment", {
+                payment: {
+                  id: item.id,
+                  amount_paid: item.amount_paid,
+                  status: item.status,
+                  bidder: item.bidderId,
+                  auction: item.auctionId,
+                  item: item.itemId,
+                },
+              })
+            }
           >
-            <Ionicons name="pencil" size={16} color="#fff" />
-            <Text style={styles.buttonText}>Editar</Text>
+            <Ionicons name="cash-outline" size={16} color="#fff" />
+            <Text style={styles.buttonText}>Pagar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -115,33 +172,23 @@ const ItemsScreen = ({ navigation }: Props) => {
     </View>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="folder-open-outline" size={64} color="#9CA3AF" />
-      <Text style={styles.emptyTitle}>Nenhum item encontrado</Text>
-      <Text style={styles.emptyDescription}>
-        Toque no botão + para criar seu primeiro item
-      </Text>
-    </View>
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Itens</Text>
+        <Text style={styles.title}>Pagamentos</Text>
         <Text style={styles.subtitle}>
-          {items.length} {items.length === 1 ? "item" : "itens"}
+          {payments.length} {payments.length === 1 ? "pagamento" : "pagamentos"}
         </Text>
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4B7BE5" />
-          <Text style={styles.loadingText}>Carregando itens...</Text>
+          <Text style={styles.loadingText}>Carregando pagamentos...</Text>
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={payments}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           ListEmptyComponent={renderEmptyState}
@@ -149,13 +196,6 @@ const ItemsScreen = ({ navigation }: Props) => {
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("CreateItem")}
-      >
-        <Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
     </View>
   );
 };
@@ -202,15 +242,8 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 20,
   },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
   textContainer: {
-    flex: 1,
-    marginRight: 16,
+    marginBottom: 16,
   },
   name: {
     fontSize: 20,
@@ -223,47 +256,14 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     lineHeight: 22,
   },
-  valueContainer: {
-    alignItems: "flex-end",
-  },
-  valueLabel: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    marginBottom: 4,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  value: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#059669",
-  },
-  categoryContainer: {
-    marginBottom: 16,
-  },
-  categoryBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EBF4FF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: "flex-start",
-    gap: 6,
-  },
-  categoryText: {
-    fontSize: 14,
-    color: "#4B7BE5",
-    fontWeight: "500",
-  },
   buttonContainer: {
     flexDirection: "row",
     gap: 12,
   },
-  editButton: {
+  payButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#4B7BE5",
+    backgroundColor: "#109910",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
@@ -338,4 +338,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ItemsScreen;
+export default PaymentsScreen;

@@ -100,6 +100,7 @@ const CreateItemScreen = ({ navigation }: Props) => {
           name: name.trim(),
           description: description.trim(),
           starting_value: numericValue,
+          final_value: numericValue,
           category: categoryId,
         }),
       });

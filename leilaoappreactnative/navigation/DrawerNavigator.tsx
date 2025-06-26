@@ -6,6 +6,7 @@ import CategoriesScreen, { Category } from "@/screens/CategoriesScreen";
 import ItemsScreen, { Item } from "@/screens/ItemsScreen";
 import AddressScreen, { Address } from "@/screens/AddressScreen";
 import AuctioneersScreen, { Auctioneer } from "@/screens/AuctioneersScreen";
+import PaymentsScreen, { Payment } from "@/screens/PaymentsScreen";
 import AuctionsScreen, { Auction } from "@/screens/AuctionsScreen";
 import CreateAuctionScreen from "@/screens/CreateAuctionScreen";
 import EditAuctionScreen from "@/screens/EditAuctionScreen";
@@ -21,6 +22,7 @@ import EditCategoryScreen from "@/screens/EditCategoryScreen";
 import EditItemScreen from "@/screens/EditItemScreen";
 import CreateItemScreen from "@/screens/CreateItemScreen";
 import VisualizeAuctionScreen from "@/screens/VisualizeAuctionScreen";
+import PayScreen from "@/screens/PayScreen";
 import HomeScreen from "@/screens/HomeScreen";
 
 export type DrawerParamList = {
@@ -44,6 +46,8 @@ export type DrawerParamList = {
   CreateAuction: undefined;
   EditAuction: { auction: Auction };
   VisualizeAuction: { auction: Auction };
+  Payments: undefined;
+  Payment: { payment: Payment };
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -239,6 +243,25 @@ const DrawerNavigator = () => {
         options={{
           drawerItemStyle: { display: "none" },
           title: "Visualizar leilão",
+        }}
+      />
+
+      <Drawer.Screen
+        name="Payments"
+        component={PaymentsScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="cash" size={size} color={color} />
+          ),
+          title: "Pagamentos",
+        }}
+      />
+      <Drawer.Screen
+        name="Payment"
+        component={PayScreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+          title: "Pagamentos",
         }}
       />
     </Drawer.Navigator>
