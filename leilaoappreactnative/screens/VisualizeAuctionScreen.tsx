@@ -23,7 +23,7 @@ interface AuctionDetails {
   id: number;
   title: string;
   description: string;
-  address: Address;
+  address: Address[];
   start_date: Date;
   end_date: Date;
   auctioneer: Auctioneer;
@@ -82,10 +82,39 @@ const VisualizeAuctionScreen = ({ route, navigation }: Props) => {
     try {
       setAuctionDetails(null);
 
-      const addressResponse = await fetch(
-        `http://127.0.0.1:8000/endereco/${auction.address}/`
-      );
-      const address = await addressResponse.json();
+      const addresses: Address[] = [];
+      if (Array.isArray(auction.address)) {
+        for (const addressId of auction.address) {
+          try {
+            const addressResponse = await fetch(
+              `http://127.0.0.1:8000/endereco/${addressId}/`
+            );
+            if (addressResponse.ok) {
+              const addressData = await addressResponse.json();
+              addresses.push(addressData);
+            } else {
+              console.error(
+                `Erro ao buscar endereço ${addressId}:`,
+                addressResponse.status
+              );
+            }
+          } catch (error) {
+            console.error(`Erro ao buscar endereço ${addressId}:`, error);
+          }
+        }
+      } else if (typeof auction.address === "number") {
+        try {
+          const addressResponse = await fetch(
+            `http://127.0.0.1:8000/endereco/${auction.address}/`
+          );
+          if (addressResponse.ok) {
+            const addressData = await addressResponse.json();
+            addresses.push(addressData);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar endereço:", error);
+        }
+      }
 
       const auctioneerResponse = await fetch(
         `http://127.0.0.1:8000/leiloeiro/${auction.auctioneer}/`
@@ -137,7 +166,7 @@ const VisualizeAuctionScreen = ({ route, navigation }: Props) => {
 
       const finalAuctionDetails = {
         ...auction,
-        address,
+        address: addresses,
         auctioneer,
         item: itemDetails,
         start_date: new Date(auction.start_date),
@@ -274,6 +303,7 @@ const VisualizeAuctionScreen = ({ route, navigation }: Props) => {
       paymentProcessedRef.current = false;
     }
   };
+
   const calculateTimeLeft = () => {
     if (!auctionDetails) return;
 
@@ -483,6 +513,7 @@ const VisualizeAuctionScreen = ({ route, navigation }: Props) => {
       setIsUpdatingBid(false);
     }
   };
+
   const handleDeleteBid = (bid: Bid) => {
     Alert.alert(
       "Confirmar Exclusão",
@@ -553,6 +584,7 @@ const VisualizeAuctionScreen = ({ route, navigation }: Props) => {
       ]
     );
   };
+
   const isLatestBid = (bidIndex: number) => {
     return bidIndex === 0;
   };
@@ -620,6 +652,7 @@ const VisualizeAuctionScreen = ({ route, navigation }: Props) => {
       currency: "BRL",
     }).format(value);
   };
+
   if (!auctionDetails) {
     return (
       <View style={styles.loadingContainer}>
@@ -731,19 +764,40 @@ const VisualizeAuctionScreen = ({ route, navigation }: Props) => {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Localização</Text>
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={20} color="#4B7BE5" />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Endereço</Text>
-              <Text style={styles.infoValue}>
-                {`${auctionDetails.address.street}, ${auctionDetails.address.number}`}
-              </Text>
-              <Text style={styles.infoValue}>
-                {`${auctionDetails.address.city} - ${auctionDetails.address.state}`}
-              </Text>
+          <Text style={styles.cardTitle}>
+            {auctionDetails.address.length > 1 ? "Endereços" : "Localização"}
+          </Text>
+          {auctionDetails.address.length === 0 ? (
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noDataText}>Nenhum endereço disponível</Text>
             </View>
-          </View>
+          ) : (
+            auctionDetails.address.map((address, index) => (
+              <View
+                key={address.id || index}
+                style={[
+                  styles.addressContainer,
+                  index > 0 && styles.additionalAddress,
+                ]}
+              >
+                {auctionDetails.address.length > 1 && (
+                  <Text style={styles.addressIndex}>Endereço {index + 1}</Text>
+                )}
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={20} color="#4B7BE5" />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Endereço</Text>
+                    <Text style={styles.infoValue}>
+                      {`${address.street}, ${address.number}`}
+                    </Text>
+                    <Text style={styles.infoValue}>
+                      {`${address.city} - ${address.state}`}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
         {auctionDetails.item && (
@@ -1265,6 +1319,30 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: "#EFF6FF",
     borderRadius: 6,
+  },
+  noDataContainer: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  noDataText: {
+    fontSize: 14,
+    color: "#666",
+    fontStyle: "italic",
+  },
+  addressContainer: {
+    marginBottom: 12,
+  },
+  additionalAddress: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  addressIndex: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4B7BE5",
+    marginBottom: 8,
   },
   editButtonText: {
     color: "#4B7BE5",

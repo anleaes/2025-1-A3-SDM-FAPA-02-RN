@@ -26,8 +26,8 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
-  const [selectedAddressName, setSelectedAddressName] = useState("");
+  const [selectedAddresses, setSelectedAddresses] = useState<number[]>([]);
+  const [selectedAddressesText, setSelectedAddressesText] = useState("");
   const [auctioneers, setAuctioneers] = useState<Auctioneer[]>([]);
   const [selectedAuctioneer, setSelectedAuctioneer] = useState<number | null>(
     null
@@ -80,15 +80,40 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
       date.getDate()
     )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
-
   const fetchAuctionDetails = async () => {
     try {
       setLoadingAuctionData(true);
 
-      const addressId =
-        typeof auction.address === "object"
-          ? auction.address.id
-          : auction.address;
+      let addressIds: number[] = [];
+
+      if (auction.address) {
+        if (Array.isArray(auction.address)) {
+          addressIds = auction.address
+            .map((addr: any) => {
+              if (typeof addr === "object" && addr.id) {
+                return addr.id;
+              }
+              return typeof addr === "number" ? addr : parseInt(addr);
+            })
+            .filter((id) => !isNaN(id));
+        } else {
+          const addressId =
+            typeof auction.address === "object" && (auction.address as any).id
+              ? (auction.address as any).id
+              : auction.address;
+
+          const parsedId =
+            typeof addressId === "number" ? addressId : parseInt(addressId);
+          if (!isNaN(parsedId)) {
+            addressIds = [parsedId];
+          }
+        }
+      }
+
+      if (addressIds.length > 0) {
+        setSelectedAddresses(addressIds);
+      }
+
       const auctioneerId =
         typeof auction.auctioneer === "object"
           ? auction.auctioneer.id
@@ -101,7 +126,6 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
         : null;
 
       const promises = [
-        fetch(`http://127.0.0.1:8000/endereco/${addressId}/`),
         fetch(`http://127.0.0.1:8000/leiloeiro/${auctioneerId}/`),
       ];
 
@@ -110,72 +134,59 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
       }
 
       const responses = await Promise.all(promises);
-      const [addressRes, auctioneerRes, itemRes] = responses;
+      const auctioneerRes = responses[0];
+      const itemRes = responses[1];
 
-      if (addressRes.ok && auctioneerRes.ok && itemRes?.ok !== false) {
-        const addressData = await addressRes.json();
+      if (auctioneerRes.ok) {
         const auctioneerData = await auctioneerRes.json();
-        let itemData = null;
-
-        if (itemRes && itemRes.ok) {
-          itemData = await itemRes.json();
-        }
-
-        setTitle(auction.title);
-        setDescription(auction.description);
-        setSelectedAddress(addressData.id);
-        setSelectedAddressName(
-          `${addressData.street}, ${addressData.number} - ${addressData.city} - ${addressData.state}`
-        );
         setSelectedAuctioneer(auctioneerData.id);
         setSelectedAuctioneerName(
           `${auctioneerData.name} - ${auctioneerData.email}`
         );
-
-        if (itemData) {
-          setSelectedItem(itemData.id);
-          setSelectedItemName(itemData.name);
-        } else if (auction.item) {
-          setSelectedItem(
-            typeof auction.item === "object" ? auction.item.id : auction.item
-          );
-          setSelectedItemName(
-            typeof auction.item === "object" ? auction.item.name : ""
-          );
-        }
-
-        setStartDate(new Date(auction.start_date));
-        setEndDate(new Date(auction.end_date));
-      } else {
-        Alert.alert(
-          "Aviso",
-          "Não foi possível carregar alguns detalhes do leilão"
-        );
-
-        if (auction.item) {
-          setSelectedItem(
-            typeof auction.item === "object" ? auction.item.id : auction.item
-          );
-          if (typeof auction.item === "object") {
-            setSelectedItemName(auction.item.name);
-          }
-        }
-
-        setStartDate(new Date(auction.start_date));
-        setEndDate(new Date(auction.end_date));
       }
-    } catch (error) {
-      Alert.alert("Erro", "Erro ao carregar detalhes do leilão");
 
-      if (auction.item) {
+      if (itemRes && itemRes.ok) {
+        const itemData = await itemRes.json();
+        setSelectedItem(itemData.id);
+        setSelectedItemName(itemData.name);
+      } else if (auction.item) {
         setSelectedItem(
           typeof auction.item === "object" ? auction.item.id : auction.item
         );
-        if (typeof auction.item === "object") {
-          setSelectedItemName(auction.item.name);
+        setSelectedItemName(
+          typeof auction.item === "object" ? auction.item.name : ""
+        );
+      }
+
+      setTitle(auction.title);
+      setDescription(auction.description);
+      setStartDate(new Date(auction.start_date));
+      setEndDate(new Date(auction.end_date));
+    } catch (error) {
+      console.error("Erro ao carregar detalhes do leilão:", error);
+      Alert.alert("Erro", "Erro ao carregar detalhes do leilão");
+
+      if (auction.address) {
+        if (Array.isArray(auction.address)) {
+          const ids = auction.address
+            .map((addr: any) =>
+              typeof addr === "object" && addr.id ? addr.id : addr
+            )
+            .filter((id) => typeof id === "number");
+          setSelectedAddresses(ids);
+        } else {
+          const addressId =
+            typeof auction.address === "object" && (auction.address as any).id
+              ? (auction.address as any).id
+              : auction.address;
+          if (typeof addressId === "number") {
+            setSelectedAddresses([addressId]);
+          }
         }
       }
 
+      setTitle(auction.title);
+      setDescription(auction.description);
       setStartDate(new Date(auction.start_date));
       setEndDate(new Date(auction.end_date));
     } finally {
@@ -184,24 +195,70 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (
+      !loadingData &&
+      !loadingAuctionData &&
+      addresses.length > 0 &&
+      selectedAddresses.length > 0
+    ) {
+      if (selectedAddresses.length === 1) {
+        const address = addresses.find(
+          (addr) => addr.id === selectedAddresses[0]
+        );
+        if (address) {
+          setSelectedAddressesText(
+            `${address.street}, ${address.number} - ${address.city} - ${address.state}`
+          );
+        }
+      } else {
+        setSelectedAddressesText(
+          `${selectedAddresses.length} endereços selecionados`
+        );
+      }
+    }
+  }, [loadingData, loadingAuctionData, addresses, selectedAddresses]);
+
+  useEffect(() => {
+    if (selectedAddresses.length === 0) {
+      setSelectedAddressesText("");
+    } else if (selectedAddresses.length === 1) {
+      const address = addresses.find(
+        (addr) => addr.id === selectedAddresses[0]
+      );
+      if (address) {
+        setSelectedAddressesText(
+          `${address.street}, ${address.number} - ${address.city} - ${address.state}`
+        );
+      }
+    } else {
+      setSelectedAddressesText(
+        `${selectedAddresses.length} endereços selecionados`
+      );
+    }
+  }, [selectedAddresses, addresses]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchAuctionDetails();
-      setAddressDropdownVisible(false);
-      setAuctioneerDropdownVisible(false);
-      setItemDropdownVisible(false);
+      const loadData = async () => {
+        await fetchData();
+        await fetchAuctionDetails();
+        setAddressDropdownVisible(false);
+        setAuctioneerDropdownVisible(false);
+        setItemDropdownVisible(false);
+      };
+
+      loadData();
     }, [auction])
   );
 
   const handleAddressSelect = (address: Address) => {
-    setSelectedAddress(address.id);
-    setSelectedAddressName(
-      `${address.street}, ${address.number} - ${address.city} - ${address.state}`
-    );
-    setAddressDropdownVisible(false);
+    setSelectedAddresses((prev) => {
+      if (prev.includes(address.id)) {
+        return prev.filter((id) => id !== address.id);
+      } else {
+        return [...prev, address.id];
+      }
+    });
   };
 
   const handleAuctioneerSelect = (auctioneer: Auctioneer) => {
@@ -233,7 +290,7 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
     if (
       !title.trim() ||
       !description.trim() ||
-      !selectedAddress ||
+      selectedAddresses.length === 0 ||
       !selectedAuctioneer ||
       !selectedItem
     ) {
@@ -257,7 +314,7 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
-          address: selectedAddress,
+          address: selectedAddresses,
           auctioneer: selectedAuctioneer,
           item: selectedItem,
           start_date: startDate.toISOString(),
@@ -291,7 +348,6 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
             </View>
           ) : (
             <>
-              {/* Título */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Título</Text>
                 <TextInput
@@ -302,7 +358,6 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
                 />
               </View>
 
-              {/* Descrição */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Descrição</Text>
                 <TextInput
@@ -315,9 +370,12 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
                 />
               </View>
 
-              {/* Endereço */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Endereço</Text>
+                <Text style={styles.label}>
+                  Endereços{" "}
+                  {selectedAddresses.length > 0 &&
+                    `(${selectedAddresses.length} selecionados)`}
+                </Text>
                 {loadingData ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator size="small" color="#4B7BE5" />
@@ -341,10 +399,10 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
                       <Text
                         style={[
                           styles.selectButtonText,
-                          !selectedAddressName && styles.placeholder,
+                          !selectedAddressesText && styles.placeholder,
                         ]}
                       >
-                        {selectedAddressName || "Selecione um endereço"}
+                        {selectedAddressesText || "Selecione os endereços"}
                       </Text>
                       <Text
                         style={[
@@ -364,7 +422,7 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
                             <TouchableOpacity
                               style={[
                                 styles.dropdownItem,
-                                selectedAddress === item.id &&
+                                selectedAddresses.includes(item.id) &&
                                   styles.selectedDropdownItem,
                               ]}
                               onPress={() => handleAddressSelect(item)}
@@ -372,13 +430,13 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
                               <Text
                                 style={[
                                   styles.dropdownItemText,
-                                  selectedAddress === item.id &&
+                                  selectedAddresses.includes(item.id) &&
                                     styles.selectedDropdownItemText,
                                 ]}
                               >
                                 {`${item.street}, ${item.number} - ${item.city} - ${item.state}`}
                               </Text>
-                              {selectedAddress === item.id && (
+                              {selectedAddresses.includes(item.id) && (
                                 <Text style={styles.checkMark}>✓</Text>
                               )}
                             </TouchableOpacity>
@@ -386,13 +444,32 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
                           style={styles.dropdownFlatList}
                           nestedScrollEnabled={true}
                         />
+                        {selectedAddresses.length > 0 && (
+                          <View style={styles.dropdownFooter}>
+                            <TouchableOpacity
+                              style={styles.clearButton}
+                              onPress={() => setSelectedAddresses([])}
+                            >
+                              <Text style={styles.clearButtonText}>
+                                Limpar seleção
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.doneButton}
+                              onPress={() => setAddressDropdownVisible(false)}
+                            >
+                              <Text style={styles.doneButtonText}>
+                                Concluído
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </View>
                     )}
                   </View>
                 )}
               </View>
 
-              {/* Responsável */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Responsável</Text>
                 {loadingData ? (
@@ -471,7 +548,6 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
                 )}
               </View>
 
-              {/* Item */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Item</Text>
                 {loadingData ? (
@@ -592,7 +668,6 @@ const EditAuctionScreen = ({ route, navigation }: Props) => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -775,6 +850,39 @@ const styles = StyleSheet.create({
   backButton: {
     borderRadius: 12,
     overflow: "hidden",
+  },
+  dropdownFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F9FAFB",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  clearButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  clearButtonText: {
+    color: "#DC2626",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  doneButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#4B7BE5",
+  },
+  doneButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });
 

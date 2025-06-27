@@ -12,7 +12,6 @@ import {
   Alert,
   TouchableOpacity,
   FlatList,
-  Platform,
 } from "react-native";
 import { DrawerParamList } from "../navigation/DrawerNavigator";
 import { Auctioneer } from "./AuctioneersScreen";
@@ -24,8 +23,8 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
-  const [selectedAddressName, setSelectedAddressName] = useState("");
+  const [selectedAddresses, setSelectedAddresses] = useState<number[]>([]);
+  const [selectedAddressesText, setSelectedAddressesText] = useState("");
   const [auctioneers, setAuctioneers] = useState<Auctioneer[]>([]);
   const [selectedAuctioneer, setSelectedAuctioneer] = useState<number | null>(
     null
@@ -75,12 +74,31 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (selectedAddresses.length === 0) {
+      setSelectedAddressesText("");
+    } else if (selectedAddresses.length === 1) {
+      const address = addresses.find(
+        (addr) => addr.id === selectedAddresses[0]
+      );
+      if (address) {
+        setSelectedAddressesText(
+          `${address.street}, ${address.number} - ${address.city} - ${address.state}`
+        );
+      }
+    } else {
+      setSelectedAddressesText(
+        `${selectedAddresses.length} endereços selecionados`
+      );
+    }
+  }, [selectedAddresses, addresses]);
+
   useFocusEffect(
     useCallback(() => {
       setTitle("");
       setDescription("");
-      setSelectedAddress(null);
-      setSelectedAddressName("");
+      setSelectedAddresses([]);
+      setSelectedAddressesText("");
       setSelectedAuctioneer(null);
       setSelectedAuctioneerName("");
       setStartDate(new Date());
@@ -91,11 +109,13 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
   );
 
   const handleAddressSelect = (address: Address) => {
-    setSelectedAddress(address.id);
-    setSelectedAddressName(
-      `${address.street}, ${address.number} - ${address.city} - ${address.state}`
-    );
-    setAddressDropdownVisible(false);
+    setSelectedAddresses((prev) => {
+      if (prev.includes(address.id)) {
+        return prev.filter((id) => id !== address.id);
+      } else {
+        return [...prev, address.id];
+      }
+    });
   };
 
   const handleAuctioneerSelect = (auctioneer: Auctioneer) => {
@@ -117,6 +137,10 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
       Alert.alert("Erro", "Por favor, selecione as datas.");
       return;
     }
+    if (selectedAddresses.length === 0) {
+      Alert.alert("Erro", "Por favor, selecione pelo menos um endereço.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("http://127.0.0.1:8000/leilao/", {
@@ -125,7 +149,7 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
-          address: selectedAddress,
+          address: selectedAddresses,
           auctioneer: selectedAuctioneer,
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
@@ -148,7 +172,6 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
       <ScrollView keyboardShouldPersistTaps="handled">
         <View style={styles.formSection}>
           <Text style={styles.title}>Novo leilão</Text>
-          {/* Título */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Título</Text>
             <TextInput
@@ -158,7 +181,6 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
               placeholder="Digite o título do leilão"
             />
           </View>
-          {/* Descrição */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Descrição</Text>
             <TextInput
@@ -170,9 +192,12 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
               multiline
             />
           </View>
-          {/* Endereço */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Endereço</Text>
+            <Text style={styles.label}>
+              Endereços{" "}
+              {selectedAddresses.length > 0 &&
+                `(${selectedAddresses.length} selecionados)`}
+            </Text>
             {loadingData ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="#4B7BE5" />
@@ -193,10 +218,10 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
                   <Text
                     style={[
                       styles.selectButtonText,
-                      !selectedAddressName && styles.placeholder,
+                      !selectedAddressesText && styles.placeholder,
                     ]}
                   >
-                    {selectedAddressName || "Selecione um endereço"}
+                    {selectedAddressesText || "Selecione os endereços"}
                   </Text>
                   <Text
                     style={[
@@ -216,7 +241,7 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
                         <TouchableOpacity
                           style={[
                             styles.dropdownItem,
-                            selectedAddress === item.id &&
+                            selectedAddresses.includes(item.id) &&
                               styles.selectedDropdownItem,
                           ]}
                           onPress={() => handleAddressSelect(item)}
@@ -224,13 +249,13 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
                           <Text
                             style={[
                               styles.dropdownItemText,
-                              selectedAddress === item.id &&
+                              selectedAddresses.includes(item.id) &&
                                 styles.selectedDropdownItemText,
                             ]}
                           >
                             {`${item.street}, ${item.number} - ${item.city} - ${item.state}`}
                           </Text>
-                          {selectedAddress === item.id && (
+                          {selectedAddresses.includes(item.id) && (
                             <Text style={styles.checkMark}>✓</Text>
                           )}
                         </TouchableOpacity>
@@ -238,12 +263,29 @@ const CreateAuctionScreen = ({ navigation }: Props) => {
                       style={styles.dropdownFlatList}
                       nestedScrollEnabled={true}
                     />
+                    {selectedAddresses.length > 0 && (
+                      <View style={styles.dropdownFooter}>
+                        <TouchableOpacity
+                          style={styles.clearButton}
+                          onPress={() => setSelectedAddresses([])}
+                        >
+                          <Text style={styles.clearButtonText}>
+                            Limpar seleção
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.doneButton}
+                          onPress={() => setAddressDropdownVisible(false)}
+                        >
+                          <Text style={styles.doneButtonText}>Concluído</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
             )}
           </View>
-          {/* Responsável */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Responsável</Text>
             {loadingData ? (
@@ -456,8 +498,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#4B7BE5",
     borderTopWidth: 0,
-
-    maxHeight: 200,
+    maxHeight: 250,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -498,7 +539,39 @@ const styles = StyleSheet.create({
     color: "#4B7BE5",
     fontWeight: "bold",
   },
-
+  dropdownFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F9FAFB",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  clearButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  clearButtonText: {
+    color: "#DC2626",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  doneButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#4B7BE5",
+  },
+  doneButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",

@@ -21,7 +21,7 @@ export type Auction = {
   id: number;
   title: string;
   description: string;
-  address: number | Address;
+  address: number[] | Address[];
   start_date: Date;
   end_date: Date;
   auctioneer: number | Auctioneer;
@@ -32,7 +32,7 @@ export type AuctionWithDetails = {
   id: number;
   title: string;
   description: string;
-  address: Address;
+  address: Address[];
   start_date: Date;
   end_date: Date;
   auctioneer: Auctioneer;
@@ -58,8 +58,13 @@ const AuctionsScreen = ({ navigation }: Props) => {
     );
     return await response.json();
   };
+
   const getId = (entity: number | { id: number }): number => {
     return typeof entity === "number" ? entity : entity.id;
+  };
+
+  const getAddressIds = (addresses: number[] | Address[]): number[] => {
+    return addresses.map((address) => getId(address));
   };
 
   const fetchAuctions = async () => {
@@ -70,8 +75,10 @@ const AuctionsScreen = ({ navigation }: Props) => {
 
       const auctionsWithDetails: AuctionWithDetails[] = await Promise.all(
         data.map(async (auction) => {
-          const [address, auctioneer] = await Promise.all([
-            fetchAddressById(getId(auction.address)),
+          const addressIds = getAddressIds(auction.address);
+
+          const [addresses, auctioneer] = await Promise.all([
+            Promise.all(addressIds.map((id) => fetchAddressById(id))),
             fetchAuctioneerById(getId(auction.auctioneer)),
           ]);
 
@@ -81,7 +88,7 @@ const AuctionsScreen = ({ navigation }: Props) => {
             description: auction.description,
             start_date: new Date(auction.start_date),
             end_date: new Date(auction.end_date),
-            address,
+            address: addresses,
             auctioneer,
             item: auction.item,
           };
@@ -125,6 +132,15 @@ const AuctionsScreen = ({ navigation }: Props) => {
     });
   };
 
+  const formatAddresses = (addresses: Address[]) => {
+    if (addresses.length === 0) return "Nenhum endereço";
+    if (addresses.length === 1) {
+      const addr = addresses[0];
+      return `${addr.street}, ${addr.number} - ${addr.city}/${addr.state}`;
+    }
+    return `${addresses.length} endereços cadastrados`;
+  };
+
   const renderItem = ({ item }: { item: AuctionWithDetails }) => (
     <View style={styles.card}>
       <View style={styles.cardContent}>
@@ -160,7 +176,7 @@ const AuctionsScreen = ({ navigation }: Props) => {
               <Ionicons name="location-outline" size={16} color="#6B7280" />
               <Text style={styles.infoLabel}>Endereço:</Text>
               <Text style={styles.infoText} numberOfLines={2}>
-                {`${item.address.street}, ${item.address.number} - ${item.address.city}/${item.address.state}`}
+                {formatAddresses(item.address)}
               </Text>
             </View>
           </View>
@@ -174,7 +190,7 @@ const AuctionsScreen = ({ navigation }: Props) => {
                 id: item.id,
                 title: item.title,
                 description: item.description,
-                address: item.address.id,
+                address: item.address.map((addr) => addr.id),
                 start_date: item.start_date,
                 end_date: item.end_date,
                 auctioneer: item.auctioneer.id,
@@ -204,7 +220,7 @@ const AuctionsScreen = ({ navigation }: Props) => {
               id: item.id,
               title: item.title,
               description: item.description,
-              address: item.address.id,
+              address: item.address.map((addr) => addr.id),
               start_date: item.start_date,
               end_date: item.end_date,
               auctioneer: item.auctioneer.id,
@@ -266,7 +282,6 @@ const AuctionsScreen = ({ navigation }: Props) => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
